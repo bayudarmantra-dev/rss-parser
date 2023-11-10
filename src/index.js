@@ -8,8 +8,32 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
+import { FetchRSS } from './fetchRSS.js';
+
 export default {
 	async fetch(request, env, ctx) {
-		return new Response('Hello World!');
+		const { searchParams } = new URL(request.url);
+		let feedURL = searchParams.get('feed');
+
+		if (!feedURL) {
+			return new Response(JSON.stringify({
+				status: 400,
+				message: 'No URL provided'
+			}), {
+				headers: {
+					'Content-Type':'application/json;charset=UTF-8',
+					'Access-Control-Allow-Origin':'*'
+				}
+			});
+		}
+		
+		//Example feed url https://www.reddit.com/.rss
+		const feed = await new FetchRSS(feedURL).get();
+		return new Response(JSON.stringify(feed), {
+			headers: {
+				'Content-Type':'application/json;charset=UTF-8',
+				'Access-Control-Allow-Origin':'*'
+			}
+		});
 	},
 };
