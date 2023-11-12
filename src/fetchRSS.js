@@ -28,62 +28,37 @@ export class FetchRSS {
             },
         };
 
-        const response = await fetch(this.url, options);
-        const rawData = await response.text();
+        try{
+            const response = await fetch(this.url, options);
+            const rawData = await response.text();
 
-        let data = parser.parse(rawData);
-        let feed = {};
+            let data = parser.parse(rawData);
+            let feed = {};
 
-        this.response = data;
+            this.response = data;
 
-        // if( JSON.stringify(data) === '{}' ) {
-        //     this.response = {
-        //         status: 500,
-        //         message: 'Failed to parse RSS feed'
-        //     };
+            if( JSON.stringify(data) === '{}' ) {
+                this.response = {
+                    status: 500,
+                    message: 'Failed to parse RSS feed'
+                };
 
-        //     return this.response;
-        // }
+                return this.response;
+            }
 
-        // if(data.feed) feed = this.reformatData(data.feed);
-        // if(data.rss) feed = this.reformatData(data.rss);
+            if(data.feed) feed = this.reformatData(data.feed);
+            if(data.rss) feed = this.reformatData(data.rss);
 
-        this.response = {
-            status: 200,
-            feed: data
-        };
-
-        // try{
-        //     const response = await fetch('https://www.vice.com/id_id/rss', options);
-        //     const rawData = await response.text();
-
-        //     let data = parser.parse(rawData);
-        //     let feed = {};
-
-        //     this.response = data;
-
-        //     if( JSON.stringify(data) === '{}' ) {
-        //         this.response = {
-        //             status: 500,
-        //             message: 'Failed to parse RSS feed'
-        //         };
-
-        //         return this.response;
-        //     }
-
-        //     if(data.feed) feed = this.reformatData(data.feed);
-        //     if(data.rss) feed = this.reformatData(data.rss);
-
-        //     this.response = {
-        //         status: 200,
-        //         feed: feed
-        //     };
-        // }catch(err){
-        //     this.response = {
-        //         status: 500,
-        //         message: err.message
-        //     };
-        // }
+            this.response = {
+                status: 200,
+                feed: feed
+            };
+        }catch(err){
+            this.response = {
+                status: 500,
+                message: err.message
+            };
+        }
 
         return this.response;
     }
@@ -108,7 +83,7 @@ export class FetchRSS {
                     title: entries.title ? entries.title : '',
                     link: entries.link ? entries.link : '',
                     description: entries.description ? entries.description : '',
-                    image: entries.image.url ? entries.image.url : false,
+                    image: this.getMetaThumbnail(entries)
                 }
             });
 
@@ -131,6 +106,24 @@ export class FetchRSS {
         }
         
         return result;
+    }
+
+    getMetaThumbnail( entries ) {
+        let thumbnail = false;
+
+        if( entries.image && entries.image.url ) {
+            thumbnail = entries.image.url;
+        }
+
+        if( entries['media:thumbnail'] ) {
+            thumbnail = entries['media:thumbnail']['@_url'];
+        }
+
+        if( entries.thumbnail ) {
+            thumbnail = entries.thumbnail;
+        }
+
+        return thumbnail;
     }
 
     getLink( item ) {
@@ -164,6 +157,14 @@ export class FetchRSS {
             thumbnail = item.thumbnail;
         }
 
+        if( item['media:content'] ) {
+            thumbnail = item['media:content']['@_url'];
+        }
+
+        if( item['media:group'] ) {
+            thumbnail = item['media:group']['media:content'][0]['@_url'];
+        }
+
         return thumbnail;
     }
 
@@ -183,6 +184,10 @@ export class FetchRSS {
 
     getCategories( item ) {
         let categories = {};
+
+        if( !item.category ) {
+            return categories;
+        }
 
         if( Array.isArray(item.category) ) {
             categories = item.category;

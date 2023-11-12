@@ -14,7 +14,7 @@ export default {
 	async fetch(request, env, ctx) {
 		const { searchParams } = new URL(request.url);
 		let feedURL = searchParams.get('feed');
-		feedURL = 'https://www.vice.com/id_id/rss';
+		//feedURL = 'https://rss.slashdot.org/Slashdot/slashdot';
 
 		if (!feedURL) {
 			return new Response(JSON.stringify({
@@ -28,7 +28,6 @@ export default {
 			});
 		}
 		
-		//Example feed url https://www.reddit.com/.rss
 		const feed = await new FetchRSS(feedURL).get();
 		return new Response(JSON.stringify(feed), {
 			headers: {
