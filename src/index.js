@@ -14,6 +14,7 @@ export default {
 	async fetch(request, env, ctx) {
 		const { searchParams } = new URL(request.url);
 		let feedURL = searchParams.get('feed');
+		feedURL = 'https://www.vice.com/id_id/rss';
 
 		if (!feedURL) {
 			return new Response(JSON.stringify({
