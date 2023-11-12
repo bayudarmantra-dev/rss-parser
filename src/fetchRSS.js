@@ -35,12 +35,23 @@ export class FetchRSS {
             let data = parser.parse(rawData);
             let feed = {};
 
+            this.response = data;
+
+            if( JSON.stringify(data) === '{}' ) {
+                this.response = {
+                    status: 500,
+                    message: 'Failed to parse RSS feed'
+                };
+
+                return this.response;
+            }
+
             if(data.feed) feed = this.reformatData(data.feed);
             if(data.rss) feed = this.reformatData(data.rss);
 
             this.response = {
                 status: 200,
-                feed: data
+                feed: feed
             };
         }catch(err){
             this.response = {
@@ -53,78 +64,137 @@ export class FetchRSS {
     }
 
     reformatData(d) {
-        if(d.link && d.link.length) {
-            d.link = d.link.map(this.fixLink);
+        let result = [];
+        let items = [];
+
+        let entries = false;
+
+        if( d.channel ) {
+            entries = d.channel;
         }
-    
-        /*
-        Final xformation... 
-        */
-        let result = {
-            feed: {}, 
-            entries: {}
+
+        if( d.entry ) {
+            entries = d.entry;
+        }
+
+        if( entries ) {
+            result.push({
+                metadata: {
+                    title: entries.title ? entries.title : '',
+                    link: entries.link ? entries.link : '',
+                    description: entries.description ? entries.description : '',
+                    image: this.getMetaThumbnail(entries)
+                }
+            });
+
+            if( entries.item ) {
+                entries.item.forEach((item) => {
+                    items.push({
+                        title: item.title ? item.title : '',
+                        link: this.getLink(item),
+                        description: item.description ? item.description : '',
+                        pubDate: this.getPubDate(item),
+                        thumbnail: this.getThumbnail(item),
+                        category: this.getCategories(item)
+                    });
+                });
+
+                result.push({
+                    items: items
+                });
+            }
         }
         
-        // feed is metadata about the feed
-        if(d.channel) {
-            result.feed = {
-                title: d.channel.title,
-                link: d.channel.link
-            }
-    
-            result.entries = d.channel.item.map(i => {
-                return {
-                    title: i.title, 
-                    link: i.link, 
-                    published: i.pubDate,
-                    content: i['content:encoded']
-                }
-            });
-        } else {
-            result.feed = {
-                title: d.title
-            }
-    
-            if(d.link) {
-                let alt = d.link.filter(d => d.rel === 'alternate');
-                if(alt.length) result.feed.link = alt[0]['href'];
-                else {
-                    // accept the link with _no_ rel
-                    result.feed.link = d.link.filter(d => !d.rel)[0]['href'];
-                }
-            }
-    
-            result.entries = d.entry.map(e => {
-    
-                if(e.link) e.link = this.fixLink(e.link);
-    
-                if(e.content) {
-                    let newContent = {};
-                    newContent.text = e.content['#text'];
-                    newContent.type = e.content['@_type'];
-                    e.content = newContent;
-                }
-    
-                return {
-                    title: e.title, 
-                    published: e.updated, 
-                    content: e.content.text,
-                    link: e.link.href
-                }
-    
-            });
-    
-        }
-    
         return result;
     }
-    
-    fixLink(l) {
-        let result = {};
-        if(l['@_href']) result.href = l['@_href'];
-        if(l['@_rel']) result.rel = l['@_rel'];
-        if(l['@_type']) result.type = l['@_type'];
-        if(l['@_title']) result.type = l['@_title'];
-        return result;
+
+    getMetaThumbnail( entries ) {
+        let thumbnail = false;
+
+        if( entries.image && entries.image.url ) {
+            thumbnail = entries.image.url;
+        }
+
+        if( entries['media:thumbnail'] ) {
+            thumbnail = entries['media:thumbnail']['@_url'];
+        }
+
+        if( entries.thumbnail ) {
+            thumbnail = entries.thumbnail;
+        }
+
+        return thumbnail;
+    }
+
+    getLink( item ) {
+        let link = '';
+
+        if( typeof item.link === 'object' && item.link !== null ) {
+            link = item.link.href;
+        }else {
+            link = item.link;
+        }
+
+        return link;
+    }
+
+    getThumbnail( item ) {
+        let thumbnail = false;
+
+        if( item.enclosure && item.enclosure['@_url'] ) {
+            thumbnail = item.enclosure['@_url'];
+        }
+
+        if( item.img ) {
+            thumbnail = item.img;
+        }
+
+        if( item['media:thumbnail'] ) {
+            thumbnail = item['media:thumbnail']['@_url'];
+        }
+
+        if( item.thumbnail ) {
+            thumbnail = item.thumbnail;
+        }
+
+        if( item['media:content'] ) {
+            thumbnail = item['media:content']['@_url'];
+        }
+
+        if( item['media:group'] ) {
+            thumbnail = item['media:group']['media:content'][0]['@_url'];
+        }
+
+        return thumbnail;
+    }
+
+    getPubDate( item ) {
+        let pubDate = false;
+
+        if( item.pubDate ) {
+            pubDate = item.pubDate;
+        }
+
+        if( item.published ) {
+            pubDate = item.published;
+        }
+        
+        return pubDate;
+    }
+
+    getCategories( item ) {
+        let categories = {};
+
+        if( !item.category ) {
+            return categories;
+        }
+
+        if( Array.isArray(item.category) ) {
+            categories = item.category;
+        }else {
+            categories = [item.category];
+        }
+
+        return categories;
     }
 }
