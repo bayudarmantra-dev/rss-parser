@@ -51,6 +51,7 @@ export class FetchRSS {
 
             this.response = {
                 status: 200,
+                hash: await this.getHash(this.url),
                 feed: feed
             };
         }catch(err){
@@ -63,11 +64,20 @@ export class FetchRSS {
         return this.response;
     }
 
+    async getHash(text) {
+        const encodedText = new TextEncoder().encode(text);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', encodedText);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
+    }
+
     reformatData(d) {
         let result = [];
         let items = [];
 
         let entries = false;
+        let meta = false;
 
         if( d.channel ) {
             entries = d.channel;
@@ -77,18 +87,26 @@ export class FetchRSS {
             entries = d.entry;
         }
 
+        if( d.title ) {
+            meta = d;
+        }else {
+            meta = entries;
+        }
+
         if( entries ) {
             result.push({
                 metadata: {
-                    title: entries.title ? entries.title : '',
-                    link: entries.link ? entries.link : '',
-                    description: entries.description ? entries.description : '',
-                    image: this.getMetaThumbnail(entries)
+                    title: meta.title ? meta.title : '',
+                    link: this.getMetaLink(meta),
+                    description: this.getMetaDescription(meta),
+                    image: this.getMetaThumbnail(meta)
                 }
             });
 
-            if( entries.item ) {
-                entries.item.forEach((item) => {
+            let entryItems = entries.item ? entries.item : entries;
+
+            if( entryItems ) {
+                entryItems.forEach((item) => {
                     items.push({
                         title: item.title ? item.title : '',
                         link: this.getLink(item),
@@ -107,6 +125,40 @@ export class FetchRSS {
         
         return result;
     }
+
+    getMetaLink( entries ) {
+        let link = '';
+
+        if( entries.link && entries.link.href ) {
+            link = entries.link.href;
+        }
+
+        if( Array.isArray(entries.link) ) {
+            entries.link.forEach((l) => {
+                if( l['@_rel'] === 'alternate' ) {
+                    link = l['@_href'];
+                }
+            });
+        }else {
+            link = entries.link;
+        }
+
+        return link;
+    }
+
+    getMetaDescription( entries ) {
+        let description = '';
+
+        if( entries.description ) {
+            description = entries.description;
+        }
+
+        if( entries.subtitle ) {
+            description = entries.subtitle;
+        }
+
+        return description;
+    } 
 
     getMetaThumbnail( entries ) {
         let thumbnail = false;
