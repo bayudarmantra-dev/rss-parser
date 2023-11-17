@@ -73,7 +73,7 @@ export class FetchRSS {
     }
 
     reformatData(d) {
-        let result = [];
+        let result = {};
         let items = [];
 
         let entries = false;
@@ -94,14 +94,12 @@ export class FetchRSS {
         }
 
         if( entries ) {
-            result.push({
-                metadata: {
-                    title: meta.title ? meta.title : '',
-                    link: this.getMetaLink(meta),
-                    description: this.getMetaDescription(meta),
-                    image: this.getMetaThumbnail(meta)
-                }
-            });
+            result['metadata'] = {
+                title: meta.title ? meta.title : '',
+                link: this.getMetaLink(meta),
+                description: this.getMetaDescription(meta),
+                image: this.getMetaThumbnail(meta)
+            };
 
             let entryItems = entries.item ? entries.item : entries;
 
@@ -117,9 +115,7 @@ export class FetchRSS {
                     });
                 });
 
-                result.push({
-                    items: items
-                });
+                result['items'] = items;
             }
         }
         
