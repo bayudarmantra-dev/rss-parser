@@ -14,7 +14,7 @@ export default {
 	async fetch(request, env, ctx) {
 		const { searchParams } = new URL(request.url);
 		let feedURL = searchParams.get('feed');
-		//feedURL = 'https://rss.slashdot.org/Slashdot/slashdot';
+		//let feedURL = 'https://reddit.com/r/indonesia/.rss';
 
 		if (!feedURL) {
 			return new Response(JSON.stringify({
