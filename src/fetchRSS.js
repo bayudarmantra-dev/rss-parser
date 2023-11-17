@@ -183,6 +183,10 @@ export class FetchRSS {
 
         if( typeof item.link === 'object' && item.link !== null ) {
             link = item.link.href;
+
+            if( item.link['@_href'] ) {
+                link = item.link['@_href'];
+            }
         }else {
             link = item.link;
         }
